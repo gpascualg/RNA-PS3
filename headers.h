@@ -32,4 +32,9 @@
 typedef unsigned int bool;
 
 
+typedef struct _SIZE{
+	u32 width;
+	u32 height;
+}_SIZE;
+
 #endif
