@@ -1,23 +1,4 @@
-<?php
-	$security = $packet->ReadByte();
-	$crc = $packet->ReadByte();
-	
-	$session_id_raw = $packet->ReadArray(16);
-	$session_id = '';
-	
-	for($i = 0; $i < 16; $i++)
-		$session_id .= ((strlen($session_id_raw[$i]) < 2)?'0'.$session_id_raw[$i]:$session_id_raw[$i]);
-				
-	if(!$packet->perform_security_check($security, $session_id)){
-		$packet->send_error();
-		exit;		
-	}
-	
-	if(!$packet->perform_crc_check($crc)){
-		$packet->send_error();
-		exit;		
-	}
-		
+<?php		
 	//Blowfish private key 4 bytes
 	
 	list($usec, $sec) = explode(' ', microtime());
@@ -58,9 +39,7 @@
  	mysql_query('UPDATE rna_users SET `blowfish`=\'' . serialize($key) . '\' WHERE `session_id`=\'' . $session_id . '\'');
  	
  	$packet_header = '006007B055' . $chunk1;
- 	
- 	include_once ("crypt.php");
- 	
+  	
  	$crypt = new pcrypt(MODE_ECB, "BLOWFISH", $key, true);
     $packet_crypt = $crypt->encrypt('00133700');
         

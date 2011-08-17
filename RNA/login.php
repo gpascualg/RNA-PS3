@@ -1,7 +1,4 @@
 <?php
-	$security = $packet->ReadByte();
-	$crc = $packet->ReadByte();
-
 	if(!$packet->perform_crc_check($crc)){
 		$packet->send_error();
 		exit;		

@@ -191,7 +191,7 @@ class pcrypt
     {
         $blocksize  = $this->cipher->blocksize;
         $ciphersize = strlen($cipher);
-        $plain      = ''; 
+        $plain      = array(); 
         
         for($i = 0;$i < $ciphersize;$i = $i + $blocksize)
         {
@@ -199,11 +199,11 @@ class pcrypt
             $block = $this->cipher->_decrypt($block);
             
             // Remove padded chars 
-            while(substr($block,0,1) == "\0")
-            {
-                $block = substr($block,1);
+            for($n = 0; $n < $blocksize; $n++){
+            	if($block[$n] == "\0")
+                	$block[$n] = 0;
             }
-            $plain .= $block;
+            $plain = array_merge($plain, $block);
         }
         
         return $plain;

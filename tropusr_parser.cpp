@@ -1,7 +1,5 @@
 #include "tropusr_parser.h"
 
-#define cplusplus
-
 #pragma pack(1)
 
 typedef struct tropusr_header{			//0x00
@@ -175,36 +173,12 @@ typedef struct tropusr_routineunknown05{
 tropusr_routineunknown;
 #endif
 
-typedef struct tropusr_trophies{	
-	DWORD unk1;		//06 00 00 00
-	DWORD unk2;
-	BYTE unk3[0x8];
-	BYTE unk4[3];
-
-	BYTE trophie_id;
-
-	BYTE unk5[3];
-
-	BYTE unlocked;
-	BYTE unk00;
-	BYTE platinum_unlocked;
-	BYTE unk10;	//0x10 / 0x20
-	BYTE unk6[5];
-	BYTE timestamp[16];
-
-	BYTE unk7[0x40];
-}				
-#ifdef cplusplus
-;
-#else
-tropusr_trophies;
-#endif
 
 
-
-int test(){
-	FILE *fp = fopen("I:\\trophy\\NPWR00499_00\\TROPUSR.DAT", "rb");
-	BYTE GAME_NUM_TROPHIES = 0x0;
+struct tropusr_ret *parse_tropusr(char *path){
+	FILE *fp = fopen(path, "rb");
+	
+	tropusr_ret *ret = new tropusr_ret;
 
 	fseek(fp, 0, SEEK_END);
 	int size = ftell(fp);
@@ -224,7 +198,7 @@ int test(){
 		data += sizeof(tropusr_params);
 		
 		if(((param->idend >> 24) & 0xFF) == 0x4)
-			GAME_NUM_TROPHIES = ((param->value >> 24) & 0xFF);
+			ret->max_trophies = ((param->value >> 24) & 0xFF);
 		else if(((param->idend >> 24) & 0xFF) == header->num_params)
 			break;
 	}
@@ -257,22 +231,27 @@ int test(){
 	tropusr_routineunknown05 *routineunk05 = (tropusr_routineunknown05*)(data); 
 	data += sizeof(tropusr_routineunknown05);
 	
-	printf("NAME:\t\t%s\n", params2->game_name);
-	printf("MAX TROPHIES:\t%d\n", GAME_NUM_TROPHIES);
-	printf("USER TROPHIES:\t%d\n\n", routineunk05->user_trophies);
+	strcpy(ret->game_name, (char*)params2->game_name);
+	ret->user_trophies = routineunk05->user_trophies;
+
+	tropusr_trophies_list *f = NULL, *l = NULL;
 
 	while(data < data_org + size){
 		tropusr_trophies *trophie = (tropusr_trophies*)(data);
-
-		printf("TROPHIE\n");
-		printf("\tID:\t%X\n", trophie->trophie_id);
-		printf("\tUNLOCKED:\t%X\n", trophie->unlocked);
-		printf("\tP_UNLOCKED:\t%X\n\n", trophie->platinum_unlocked);
+		//printf("%X\n", trophie->trophie_id);
+		if(l == NULL)
+			l = f = new tropusr_trophies_list;
+		else{
+			l->next = new tropusr_trophies_list;
+			l = l->next;
+		}
+		memset(l, 0, sizeof(tropusr_trophies_list));
+		l->trophie = trophie;
 
 		data += sizeof(tropusr_trophies);
 	}
+	
+	ret->trophies_list = f;
 
-	printf("\n\n");
-
-	return 1;
+	return ret;
 }

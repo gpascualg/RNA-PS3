@@ -229,14 +229,14 @@ class pcrypt_blowfish
     {
         $Xl  = $Xl ^ $this->bctx['p'][17];
         
-        $Xr ^= $this->_F($Xl) ^ $this->bctx['p'][2];	$Xl ^= $this->_F($Xr) ^ $this->bctx['p'][1];
-        $Xr ^= $this->_F($Xl) ^ $this->bctx['p'][4];	$Xl ^= $this->_F($Xr) ^ $this->bctx['p'][3];
-        $Xr ^= $this->_F($Xl) ^ $this->bctx['p'][6];	$Xl ^= $this->_F($Xr) ^ $this->bctx['p'][5];
-        $Xr ^= $this->_F($Xl) ^ $this->bctx['p'][8];	$Xl ^= $this->_F($Xr) ^ $this->bctx['p'][7];
-        $Xr ^= $this->_F($Xl) ^ $this->bctx['p'][10];	$Xl ^= $this->_F($Xr) ^ $this->bctx['p'][9];	
-        $Xr ^= $this->_F($Xl) ^ $this->bctx['p'][12];	$Xl ^= $this->_F($Xr) ^ $this->bctx['p'][11];
-        $Xr ^= $this->_F($Xl) ^ $this->bctx['p'][14];	$Xl ^= $this->_F($Xr) ^ $this->bctx['p'][13];
         $Xr ^= $this->_F($Xl) ^ $this->bctx['p'][16];	$Xl ^= $this->_F($Xr) ^ $this->bctx['p'][15];
+        $Xr ^= $this->_F($Xl) ^ $this->bctx['p'][14];	$Xl ^= $this->_F($Xr) ^ $this->bctx['p'][13];
+        $Xr ^= $this->_F($Xl) ^ $this->bctx['p'][12];	$Xl ^= $this->_F($Xr) ^ $this->bctx['p'][11];
+        $Xr ^= $this->_F($Xl) ^ $this->bctx['p'][10];	$Xl ^= $this->_F($Xr) ^ $this->bctx['p'][9];
+        $Xr ^= $this->_F($Xl) ^ $this->bctx['p'][8];	$Xl ^= $this->_F($Xr) ^ $this->bctx['p'][7];	
+        $Xr ^= $this->_F($Xl) ^ $this->bctx['p'][6];	$Xl ^= $this->_F($Xr) ^ $this->bctx['p'][5];
+        $Xr ^= $this->_F($Xl) ^ $this->bctx['p'][4];	$Xl ^= $this->_F($Xr) ^ $this->bctx['p'][3];
+        $Xr ^= $this->_F($Xl) ^ $this->bctx['p'][2];	$Xl ^= $this->_F($Xr) ^ $this->bctx['p'][1];
                 
         $Xr  = $Xr ^ $this->bctx['p'][0];
               
@@ -391,13 +391,32 @@ class pcrypt_blowfish
       */
     function _decrypt($block)
     {
-        // unpack the block in unsigned long ints (uInt32)
-        $data = array_values(unpack('N*', $block));
+        $data = array_values(unpack('C*', $block));
+
+        $data1 = intval(($data[3] << 24) + ($data[2] << 16) + ($data[1] << 8) + ($data[0]), 16);
+        $data2 = intval(($data[7] << 24) + ($data[6] << 16) + ($data[5] << 8) + ($data[4]), 16);
+                
+        $this->_blowfish_decrypt($data1,$data2);
         
-        // decrypt the block and return the block packed into string 
-        $this->_blowfish_decrypt($data[0],$data[1]);
+        $d1 = $data1 & 0xff;
+        $data1 = $data1 >> 8;
+        $c1 = $data1 & 0xff;
+        $data1 = $data1 >> 8;
+        $b1 = $data1 & 0xff;
+        $data1 = $data1 >> 8;
+        $a1 = $data1 & 0xff;
         
-        return pack('N*',$data[0],$data[1]);
+        $d2 = $data2 & 0xff;
+        $data2 = $data2 >> 8;
+        $c2 = $data2 & 0xff;
+        $data2 = $data2 >> 8;
+        $b2 = $data2 & 0xff;
+        $data2 = $data2 >> 8;
+        $a2 = $data2 & 0xff;
+        
+       	$data = array($d1, $c1, $b1, $a1, $d2, $c2, $b2, $a2);
+       	        
+        return $data;
     }
 
 }

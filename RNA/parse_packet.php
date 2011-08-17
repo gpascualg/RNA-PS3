@@ -1,15 +1,19 @@
 <?php
 	error_reporting(E_ERROR | E_WARNING | E_PARSE);
 	
+	include_once ("crypt.php");
+	 	
 	$link = mysql_connect('localhost',  'root', '');
 	mysql_select_db('rna', $link);
 		
 	class Packet{
 		var $packet;
 		var $count;
+		var $packet_len;
 		
 		function Packet($packet){
 			$this->packet = $packet;
+			$this->packet_len = strlen($this->packet);
 			$this->count = 0;
 		}
 		
@@ -33,7 +37,7 @@
 				return 1;		
 		}
 		
-		function perform_security_check($security, $session_id){
+		function perform_security_check($security, $session_id, $s = false){
 			$query = mysql_query('SELECT `security` FROM rna_users WHERE `session_id`=\'' . $session_id . '\'');
 			$resp = mysql_fetch_array($query);
 			
@@ -42,12 +46,38 @@
 			$result = $result ^ ( $result >> 4 );
 			$result = $result & 0xFF;
 			
-			mysql_query('UPDATE rna_users SET `security`=\'' . ((strlen($result) < 2)?'0'.$result:$result) . '\' WHERE `session_id`=\'' . $session_id . '\'');
+			$result = dechex($result);
+			$result = ((strlen($result) < 2)?'0'.$result:$result);
 			
-			if(strtoupper(dechex($result)) != strtoupper($security))
+			mysql_query('UPDATE rna_users SET `security`=\'' . $result . '\' WHERE `session_id`=\'' . $session_id . '\'');
+			
+			if(strtoupper($result) != strtoupper($security))
 				return 0;
 			else
 				return 1;	
+		}
+		
+		function decrypt($un_blowfish_key){
+			$un_crypt = new pcrypt(MODE_ECB, "BLOWFISH", $un_blowfish_key, true);
+			$packet_raw = '';
+			$packet_crypt = '';
+						
+			for($i = 0; $i < $this->count; $i++)
+				$packet_raw .= $this->packet[$i];
+
+			for($i = $this->count; $i < $this->packet_len; $i+=2)
+				$packet_crypt .= chr( ( intval( $this->packet[$i] , 16) << 4) + intval( ($this->packet[$i+1]) , 16) );
+			
+			$packet_decrypt = $un_crypt->decrypt($packet_crypt);
+			
+			$this->packet = $packet_raw;
+			
+			for($i = 0; $i < count($packet_decrypt); $i++){
+				$buff = dechex($packet_decrypt[$i]);
+				$this->packet .= ((strlen($buff)<2)?'0':'') . $buff;
+			}
+			 				
+			unset($un_crypt);
 		}
 		
 		function send_error(){
@@ -104,61 +134,71 @@
 	
 	$opcode = $packet->ReadWord();
 	$size = $packet->ReadWord();
-	$session_id = '';
-	
-	$uinfo = NULL;
-	
-	if(intval($size, 16) & 0xB000){
-		$session_id_raw = $packet->ReadArray(16);
-		for($i = 0; $i < 16; $i++)
-			$session_id .= ((strlen($session_id_raw[$i]) < 2)?'0'.$session_id_raw[$i]:$session_id_raw[$i]);
-			
-		$query = mysql_query('SELECT * FROM rna_users WHERE session_id=\'' . $session_id . '\'');
-		if(mysql_num_rows($query) <= 0){
-			$packet->send_error();
-			exit;
-		}
-		
-		$uinfo = mysql_fetch_array($query);
-	}
-	
-	switch($opcode){
-		case 6000: //handshake
-			include_once ('handshake.php');
-		break;
-	}
+	$security = $packet->ReadByte();
+	$crc = $packet->ReadByte();
 
+	//OPCODES QUE NO UTILIZAN SESSION_ID SIEMPRE
 	switch( dechex(intval((intval($opcode, 16) & 0xFF00), 16) >> 8) ){
 		//LOGIN
 		case 11: // -> A1
 			include_once('login.php');
+			exit;
+		break;
+		default:
+			break;
+	}
+	
+	//OPCODES CON SESSION_ID Y CHECKS
+	
+	$session_id = '';	
+	$uinfo = NULL;
+	
+	$session_id_raw = $packet->ReadArray(16);
+	for($i = 0; $i < 16; $i++)
+		$session_id .= ((strlen($session_id_raw[$i]) < 2)?'0'.$session_id_raw[$i]:$session_id_raw[$i]);
+	$session_id = strtoupper($session_id);
+		
+	if(!$packet->perform_security_check($security, $session_id)){
+		$packet->send_error();
+		exit;		
+	}
+	
+	if(!$packet->perform_crc_check($crc)){
+		$packet->send_error();
+		exit;		
+	}
+	
+	if( intval(intval($size, 16) & 0xF000, 16) == 0xB000 ){	
+		$query = mysql_query('SELECT * FROM rna_users WHERE session_id=\'' . $session_id . '\'');
+		if(mysql_num_rows($query) <= 0){
+			$packet->send_error();
+			exit;
+		}		
+		$uinfo = mysql_fetch_array($query);
+		
+		$un_blowfish_key = unserialize($uinfo['blowfish']);		
+		$packet->decrypt($un_blowfish_key);		
+	}
+	
+	
+	switch($opcode){
+		case 6000: //handshake
+			include_once ('handshake.php');
+			exit;
 		break;
 	}
 	
+	switch( dechex(intval((intval($opcode, 16) & 0xFF00), 16) >> 8) ){
+		//LOGIN
+		case 12: // -> A2
+			include_once('trophy.php');
+			exit;
+		break;
+		default:
+			break;
+	}
+	
+	echo "CCCC";
+	
 	exit;
-
-	
-
-	printf("%x\n", $constant);
-
-	$result = (0x3F*(~$constant+0x34));
-	$result = $result ^ ( $result >> 4 );
-	$result = $result & 0xFF;
-	$constant = $result;
-
-	printf("%x\n", $constant);
-	
-	$result = (0x3F*(~$constant+0x34));
-	$result = $result ^ ( $result >> 4 );
-	$result = $result & 0xFF;
-	$constant = $result;
-
-	printf("%x\n", $constant);
-	
-	$result = (0x3F*(~$constant+0x34));
-	$result = $result ^ ( $result >> 4 );
-	$result = $result & 0xFF;
-	$constant = $result;
-
-	printf("%x\n\n", $constant);
 ?>

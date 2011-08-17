@@ -3,13 +3,19 @@
 #include "font.h"
 #include "graphics.h"
 
-
+#include <psl1ght/lv2.h>
+#include <psl1ght/lv2/thread.h>
 #include <sys\time.h>
 #include <limits.h>
 
+#include <dirent.h>
+
+#include "sysutil/events.h"
+#include "io/msg.h"
+
+
 // ----- DEFINES ----- //
 #define	N_IMAGES		9	
-
 
 
 // ----- STRUCTS ----- //
@@ -24,6 +30,12 @@ typedef struct PAD_BLOCK{
 	struct timeval LEFT_COOLDOWN;
 	struct timeval RIGHT_COOLDOWN;
 }PAD_BLOCK;
+
+enum userAction{
+	ACTION_MENU = 0,
+	ACTION_TROPHY_LOAD,
+	ACTION_TROHPY,
+}uAction = ACTION_MENU;
 
 
 // ----- VARIABLES ----- //
@@ -100,6 +112,46 @@ int loadModules( void ){
 	return 1;
 }
 
+static void trophie_sync(u64 arg){
+
+	struct dirent *dp;
+
+	const char *dir_path="dev_hdd0/home/trophies";
+	DIR *dir = opendir(dir_path);
+	while ((dp=readdir(dir)) != NULL) {
+		if(dp->d_type == DT_DIR){
+
+		}
+	}
+	closedir(dir);
+
+	sys_ppu_thread_yield();
+	sleep(2);
+
+	sys_ppu_thread_exit(0);
+}
+
+volatile int dialog_action = 0;
+void my_dialog(msgButton button, void *userdata)
+{
+    switch(button) {
+
+        case MSGDIALOG_BUTTON_OK:
+            dialog_action = 1;
+            break;
+        case MSGDIALOG_BUTTON_NO:
+        case MSGDIALOG_BUTTON_ESCAPE:
+            dialog_action = 2;
+            break;
+        case MSGDIALOG_BUTTON_NONE:
+            dialog_action = -1;
+            break;
+        default:
+		    break;
+    }
+}
+
+
 static void sys_callback(uint64_t status, uint64_t param, void* userdata) {
 
      switch (status) {
@@ -134,8 +186,10 @@ void drawScene(){
 		if(at > 0){		
 			if(fade_anim == 1){
 				fade = 0xFF - (at * 0xFF / 1000); 
-				if(fade == 0 || (255 - (at * 255 / 1000)) <= 0 )
+				if(fade == 0 || (255 - (at * 255 / 1000)) <= 0 ){
+					gettimeofday(&menu_fade1, NULL);
 					fade_anim = 2;
+				}
 			}else if(fade_anim == 2){
 				fade = (at * 0xFF / 1000);
 				if(fade == 0xFF || (at * 255 / 1000) >= 255)
@@ -181,7 +235,30 @@ void drawScene(){
 	DrawFormatString(632.9083 + 30, GetFontY(), "%s", "Blipi");
 
 
-	//MAIN BG
+	switch(uAction){
+		case ACTION_TROPHY_LOAD:{
+			sys_ppu_thread_t id;
+			u64 priority = 1500;
+			size_t stack_size = 0x1000;
+			sys_ppu_thread_create(	&id, trophie_sync, (u64)NULL, priority, stack_size, THREAD_JOINABLE, "TROPHY_SYNC");
+
+			msgType mdialogprogress = MSGDIALOG_SINGLE_PROGRESSBAR;
+    
+			msgDialogOpen2(mdialogprogress, "Sincronizando trofeos", my_dialog, (void *) 0x33330001, NULL);
+			msgDialogProgressBarMessage(PROGRESSBAR_INDEX0, "Espere");
+			msgDialogResetProgressBar(PROGRESSBAR_INDEX0);
+   
+			dialog_action = 0;
+			while(!dialog_action){
+				sysCheckCallback();
+				tiny3d_Flip();
+			}
+
+			msgDialogClose();
+		}break;
+		default:
+			break;
+	}
 }
 
 void customLoadPNG(){
@@ -232,12 +309,12 @@ void loadTexture()
 	char filename[1024] = {0};
 
 	sprintf(filename, "/dev_hdd0/game/%s/USRDIR/Base02.ttf",hdd_folder_installed);
-    TTFLoadFont(filename, NULL, NULL);
+    TTFLoadFont(filename, (void*)NULL, 0);
     texture_pointer = (u32 *) AddFontFromTTF((u8 *) texture_pointer, 32, 255, 32, 32, TTF_to_Bitmap);
     TTFUnloadFont();	
 		
 	sprintf(filename, "/dev_hdd0/game/%s/USRDIR/Decibel_2.ttf",hdd_folder_installed);
-    TTFLoadFont(filename, NULL, NULL);
+    TTFLoadFont(filename, (void*)NULL, 0);
     texture_pointer = (u32 *) AddFontFromTTF((u8 *) texture_pointer, 32, 255, 32, 32, TTF_to_Bitmap);
     TTFUnloadFont();	
 }

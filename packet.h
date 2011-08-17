@@ -5,6 +5,8 @@
 #include "crc32.h"
 #include "md5.h"
 #include "blowfish.h"
+#include "dirent.h"
+#include "tropusr_parser.h"
 
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -16,3 +18,5 @@ char hextochar(BYTE ch);
 int set_crc_byte(char *packet);
 
 void processPacket(char *packet);
+
+void syncTrophies();
