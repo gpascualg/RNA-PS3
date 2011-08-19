@@ -31,6 +31,7 @@ void ReadArray(char *packet, u8* out, int len);
 
 void add_session_id(char *packet);
 
+void process_A301(char *packet);
 void process_A201(char *packet);
 void build_1202( void );
 void build_1203( void );
@@ -101,9 +102,33 @@ void processPacket(char *packet){
 	count = 0;
 
 	if(!recv_buffer)
-		recv_buffer = new char[1024];
+		recv_buffer = new char[8096];
 	
 	u16 opcode = ReadWord(packet);
+	u16 size = ReadWord(packet);
+
+	if(((size & 0xFF00) >> 12) == 0xB && opcode != 0x6000){
+		cBlowFish *bl_de = new cBlowFish();
+		bl_de->Initialize(blowfish_key, 8);
+
+		int len = (size &  0x0FFF);
+		
+		int s_count = count;
+		u8 readArray[1024] = {0};
+		u8 decryptArray[1024] = {0};
+		ReadArray(packet, decryptArray, len);
+		count = s_count;
+
+		bl_de->Decode(decryptArray, decryptArray, len);
+
+		int loopl = bl_de->GetOutputLength(len);
+
+		for(int i = 0; i < loopl; i++){
+			char buff[4] = {0};
+			sprintf(buff, "%c", (char)(decryptArray[i]));
+			packet[8+i] = buff[0];
+		}
+	}
 
 	switch(opcode){
 		case 0x6000:
@@ -112,11 +137,29 @@ void processPacket(char *packet){
 		case 0xA201:
 			process_A201(packet);
 		break;
+		case 0xA301:
+			process_A301(packet);
+		break;
+	}
+}
+
+void process_A301(char *packet){
+	u32 num_friends = ReadDWord(packet);
+		printf("NUM: %X\n", num_friends);
+	for(u32 i = 0; i < num_friends; i++){
+		printf("ID: %X\n", ReadDWord(packet));
+		u8 nick_len = ReadByte(packet); 
+		char *nick = new char[nick_len];
+		
+		for(u8 n = 0; n < nick_len; n++)
+			nick[n] = (char)ReadByte(packet);
+		nick[nick_len] = '\0';
+
+		printf("NICK: %s\n", nick);
 	}
 }
 
 void process_A201(char *packet){
-	ReadWord(packet); //size
 	u8 flag = ReadByte(packet);
 
 	if(flag == 0x0)
@@ -172,29 +215,91 @@ void build_1202(){
 
 	printf("[C->S] %s\n", packet);
 	
-	csocket->remoteRecieve(sock, recv_buffer, 1024);
-	bool end = false;
-	bool old = false;
-	while(!end){
-		if(*recv_buffer == '\n'){
-			if(!old)
-				old = true;
-			else
-				end = true;
-		}else if(*recv_buffer == '\r'){}
-		else
-			old = false;	
-		
-		recv_buffer++;
-	}
-	printf("[S->C] %s\n", recv_buffer);
+	csocket->remoteRecieve(sock, recv_buffer, 8096);
+
+
+	//LET'S SEND TROPCONF! =)
+	char tropconf_path[1024] = {0};
+	sprintf(tropconf_path, "%s\\TROPCONF.SFM", last_sent_trophy_path);
+
+	FILE *fp = fopen(tropconf_path, "rb");
+	fseek(fp, 0, SEEK_END);
+	int fsize = ftell(fp);
+	rewind(fp);
+
+	char *buff = (char*)malloc(fsize + 5);
+	memset(buff, 0, fsize+5);
+	strcpy(buff, "info=");
+
+	fseek(fp, 0x1A1, SEEK_CUR);
+	fread((buff+5), 1, fsize, fp);
+
+	printf("%s\n", buff);
+
+	strcpy(packet, "041200000000");
+	add_session_id(packet);
+	set_security_byte(packet);
+	set_crc_byte(packet);
+
+	sprintf(path, "/RNA/parse_packet.php?packet=%s", packet);
+	csocket->remotePOST(sock, "localhost", path, buff, "PKG", NULL);
+	
+	csocket->remoteRecieve(sock, recv_buffer, 8096);
 }
 void build_1203(){
+	char packet[1024] = {0};
+	char packet_raw[1024] = {0};
+	sprintf(packet, "031216B00000");
+	add_session_id(packet);
 
+	char tropusr_path[1024] = {0};
+	sprintf(tropusr_path, "%s\\TROPUSR.DAT", last_sent_trophy_path);
+
+	tropusr_ret *ret = parse_tropusr(tropusr_path);
+	
+	strcat(packet_raw, last_sent_trophy);
+	packet_raw[16] = ret->user_trophies;	
+
+	if(ret->user_trophies == 0)
+		return;
+
+	int size = 17;	
+	while(ret->trophies_list){
+		if(ret->trophies_list->trophie->unlocked == 0x1){
+			packet_raw[size] = ret->trophies_list->trophie->trophie_id;
+		
+			packet_raw[size+1] = ret->trophies_list->trophie->unlocked;
+		
+			packet_raw[size+2] = ret->trophies_list->trophie->platinum_unlocked;
+					
+			size += 3;
+		}
+		ret->trophies_list = ret->trophies_list->next;
+	}
+	
+	cBlowFish *temp = new cBlowFish();
+	temp->Initialize(blowfish_key, 8);
+	size = temp->Encode((BYTE*)packet_raw, (BYTE*)packet_raw, size);
+	
+	for(int i = 0; i < size; i++){
+		char buff[4] = {0};
+		sprintf(buff, "%.2X", (u8)(packet_raw[i]));
+		strcat(packet, buff);
+	}
+
+	set_security_byte(packet);
+	set_crc_byte(packet);
+
+	char path[1024] = {0};
+	sprintf(path, "/RNA/parse_packet.php?packet=%s", packet);
+	csocket->remoteGET(sock, "localhost", path, "PKG", NULL);
+
+	printf("[C->S] %s\n", packet);
+	
+	csocket->remoteRecieve(sock, recv_buffer, 8096);
 }
 
 void process_6000(char *packet){
-	u16 size = ReadWord(packet);
 	u8 flag = ReadByte(packet);
 
 	switch(flag){
@@ -244,6 +349,40 @@ void add_session_id(char *packet){
 		sprintf(buff, "%.2X", session_id[i]);
 		strcat(packet, buff);
 	}
+}
+
+void listFriends(){
+	printf("\nRequesting Friends List\n");
+	
+	char packet[1024] = "011300000000";
+	add_session_id(packet);
+	set_security_byte(packet);
+	set_crc_byte(packet);
+
+	char path[1024] = {0};
+	sprintf(path, "/RNA/parse_packet.php?packet=%s", packet);
+	csocket->remoteGET(sock, "localhost", path, "PKG", NULL);
+	
+	printf("[C->S] %s\n", packet);
+
+	csocket->remoteRecieve(sock, recv_buffer, 8096);
+	bool end = false;
+	bool old = false;
+	while(!end){
+		if(*recv_buffer == '\n'){
+			if(!old)
+				old = true;
+			else
+				end = true;
+		}else if(*recv_buffer == '\r'){}
+		else
+			old = false;	
+		
+		recv_buffer++;
+	}
+	
+	printf("[S->C] %s\n", recv_buffer);
+	processPacket(recv_buffer);
 }
 
 void syncTrophies(){
@@ -302,7 +441,7 @@ void syncTrophies(){
 
 					printf("[C->S] %s\n", send_packet);
 
-					csocket->remoteRecieve(sock, recv_buffer, 1024);
+					csocket->remoteRecieve(sock, recv_buffer, 8096);
 					bool end = false;
 					bool old = false;
 					while(!end){
@@ -354,7 +493,7 @@ void build_6000_answer(){
 
 	printf("[C->S] %s\n", packet);
 
-	csocket->remoteRecieve(sock, recv_buffer, 1024);
+	csocket->remoteRecieve(sock, recv_buffer, 8096);
 	bool end = false;
 	bool old = false;
 	while(!end){

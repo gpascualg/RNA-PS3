@@ -44,7 +44,7 @@ char XML_InsertChildNodeLast(struct xml_node *parent, struct xml_node* node);
 struct xml_node_attr *XML_GetNodeAttr(struct xml_node *node, char *name);
 char *XML_GetNodeValue(struct xml_node *node);
 
-char XML_Dump(char *file, struct xml_node *main);
+char XML_Dump(char *file, xml_node *main);
 
 void XML_EndParse(char free_tree);
 

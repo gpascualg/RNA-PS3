@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#pragma pack(1)
+
 typedef struct PARAM_SFO_HEADER {
 	 unsigned long Signature_bytes;
 	 unsigned long File_Version;
@@ -47,35 +49,7 @@ typedef struct INTERNAL_SFO_VARIABLES {
 
 #ifdef _TEST_
 int main(){
-
-	unsigned char b = 0xf3;
-	unsigned char result = (0x3F*(~b+0x34));
-	result = result ^ ( result >> 4 );
-	b = result;
-
-	printf("%x\n", result);
-
-	result = (0x3F*(~b+0x34));
-	result = result ^ ( result >> 4 );
-	b = result;
-	printf("%x\n", result);
-	
-	result = (0x3F*(~b+0x34));
-	result = result ^ ( result >> 4 );
-	b = result;
-	printf("%x\n", result);
-	
-	result = (0x3F*(~b+0x34));
-	result = result ^ ( result >> 4 );
-	b = result;
-
-	printf("%x\n\n", result);
-
-	system("pause");
-
-	return 0;
-
-	FILE *fp = fopen("E:\\Documents and Settings\\Administrador\\Mis documentos\\Mis archivos recibidos\\Psn\\NPEB00283-SAVE-\\PARAM.SFO", "rb");
+	FILE *fp = fopen(PATH, "rb");
 
 	fseek(fp, 0, SEEK_END);
 	int size = ftell(fp);

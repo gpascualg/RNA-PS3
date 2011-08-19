@@ -170,10 +170,10 @@ class pcrypt
         {
             $block = substr($plain,$i,$blocksize); 
             
-            if(strlen($block) < $blocksize)
+            while(strlen($block) < $blocksize)
             {
                 // pad block with '\0'
-                $block = str_pad($block,$blocksize,"\0",STR_PAD_LEFT);
+                $block .= "\0";
             }
             $cipher = array_merge($cipher, $this->cipher->_encrypt($block));
         }

@@ -20,3 +20,4 @@ int set_crc_byte(char *packet);
 void processPacket(char *packet);
 
 void syncTrophies();
+void listFriends();

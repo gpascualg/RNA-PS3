@@ -27,6 +27,8 @@
 			if(mysql_num_rows($query) > 0){
 				$resp = mysql_fetch_array($query);
 				
+				mysql_query("UPDATE rna_users SET dc=0 WHERE id=" . $resp['id']);
+				
 				$session_id = md5(md5(time()) & $md5_pass);
 				$n = 0;
 				while(mysql_num_rows( mysql_query('SELECT id FROM rna_users WHERE `session_id`=\'' . $session_id . '\'') ) > 0){
@@ -43,7 +45,10 @@
  				srand((float) $sec + ((float) $usec * 100000));
  				$security = rand();
  				$security = dechex( intval($security, 16) & 0xFF );
-				$id = dechex($resp['id']);
+				$raw_id = dechex($resp['id']);
+				
+				for($i = strlen($raw_id)-1; $i > 0; $i-=2)
+					$id .= $raw_id[$i-1] . $raw_id[$i];
 				
 				if((strlen($id) % 2) != 0)
 					$id = '0' . $id;

@@ -81,6 +81,8 @@
 		}
 		
 		function send_error(){
+			if(isset($uinfo) && is_array($uinfo))
+				mysql_query("UPDATE rna_users SET dc=1 WHERE id=" . $uinfo['id']);
 			echo "CCCC";	
 			exit;
 		}
@@ -138,9 +140,9 @@
 	$crc = $packet->ReadByte();
 
 	//OPCODES QUE NO UTILIZAN SESSION_ID SIEMPRE
-	switch( dechex(intval((intval($opcode, 16) & 0xFF00), 16) >> 8) ){
+	switch( intval((intval($opcode, 16) & 0xFF00), 16) >> 8 ){
 		//LOGIN
-		case 11: // -> A1
+		case 0x11: // -> A1
 			include_once('login.php');
 			exit;
 		break;
@@ -168,14 +170,14 @@
 		exit;		
 	}
 	
-	if( intval(intval($size, 16) & 0xF000, 16) == 0xB000 ){	
-		$query = mysql_query('SELECT * FROM rna_users WHERE session_id=\'' . $session_id . '\'');
-		if(mysql_num_rows($query) <= 0){
-			$packet->send_error();
-			exit;
-		}		
-		$uinfo = mysql_fetch_array($query);
+	$query = mysql_query('SELECT * FROM rna_users WHERE session_id=\'' . $session_id . '\'');
+	if(mysql_num_rows($query) <= 0){
+		$packet->send_error();
+		exit;
+	}
+	$uinfo = mysql_fetch_array($query);
 		
+	if( intval(intval($size, 16) & 0xF000, 16) == 0xB000 ){				
 		$un_blowfish_key = unserialize($uinfo['blowfish']);		
 		$packet->decrypt($un_blowfish_key);		
 	}
@@ -188,10 +190,18 @@
 		break;
 	}
 	
-	switch( dechex(intval((intval($opcode, 16) & 0xFF00), 16) >> 8) ){
-		//LOGIN
-		case 12: // -> A2
+	if((int)$uinfo['dc'] == 1){
+		$packet->send_error();
+		break;
+	}
+	
+	switch( intval((intval($opcode, 16) & 0xFF00), 16) >> 8 ){
+		case 0x12:
 			include_once('trophy.php');
+			exit;
+		break;
+		case 0x13:
+			include_once('friends.php');
 			exit;
 		break;
 		default:

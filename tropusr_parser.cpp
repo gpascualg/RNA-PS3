@@ -205,7 +205,6 @@ struct tropusr_ret *parse_tropusr(char *path){
 	
 	tropusr_params2 *params2 = (tropusr_params2*)(data);
 	data += sizeof(tropusr_params2);
-
 	
 	tropusr_unknownff *routineff = (tropusr_unknownff*)(data);
 	data += sizeof(tropusr_unknownff);
@@ -238,7 +237,6 @@ struct tropusr_ret *parse_tropusr(char *path){
 
 	while(data < data_org + size){
 		tropusr_trophies *trophie = (tropusr_trophies*)(data);
-		//printf("%X\n", trophie->trophie_id);
 		if(l == NULL)
 			l = f = new tropusr_trophies_list;
 		else{
