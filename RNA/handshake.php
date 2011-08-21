@@ -21,7 +21,7 @@
  	if(strlen($byte3) < 2) $byte3 = '0' . $byte3;
  	
  	$chunk1 = $byte0 . $byte1 . $byte2 . $byte3;
- 	$chunk2 = $packet->ReadDWord();
+ 	$chunk2 = $packet_parser->ReadDWord();
  	
  	while(strlen($chunk2) < 8)
  		$chunk2 = '0' . $chunk2;

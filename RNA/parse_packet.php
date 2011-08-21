@@ -87,6 +87,26 @@
 			exit;
 		}
 		
+		function ByteReverse($block, $block_size, $hex=false){
+			if(!$hex)
+				$block = dechex($block);
+			$reversed_block = '';
+			
+			if((strlen($block) % 2) != 0)
+				$block = '0' . $block;
+	
+			$block_len = strlen($block);
+			for($i = 0; $i < $block_size*2; $i+=2){
+				if($block_len > $i){
+					$reversed_block .= $block[$block_len - 2 - $i];
+					$reversed_block .= $block[$block_len - 1 - $i];
+				}else
+					$reversed_block .= '00';						
+			}	
+				
+			return $reversed_block;
+		}
+		
 		function ReadByte(){
 			if(!isset($this->packet) || $this->packet == '')
 				return -1;
@@ -132,12 +152,12 @@
 	$packet_data = mysql_escape_string($_GET['packet']);
 	$packet_data = htmlspecialchars($packet_data);
 	
-	$packet = new Packet($packet_data);
+	$packet_parser = new Packet($packet_data);
 	
-	$opcode = $packet->ReadWord();
-	$size = $packet->ReadWord();
-	$security = $packet->ReadByte();
-	$crc = $packet->ReadByte();
+	$opcode = $packet_parser->ReadWord();
+	$size = $packet_parser->ReadWord();
+	$security = $packet_parser->ReadByte();
+	$crc = $packet_parser->ReadByte();
 
 	//OPCODES QUE NO UTILIZAN SESSION_ID SIEMPRE
 	switch( intval((intval($opcode, 16) & 0xFF00), 16) >> 8 ){
@@ -155,31 +175,31 @@
 	$session_id = '';	
 	$uinfo = NULL;
 	
-	$session_id_raw = $packet->ReadArray(16);
+	$session_id_raw = $packet_parser->ReadArray(16);
 	for($i = 0; $i < 16; $i++)
 		$session_id .= ((strlen($session_id_raw[$i]) < 2)?'0'.$session_id_raw[$i]:$session_id_raw[$i]);
 	$session_id = strtoupper($session_id);
 		
-	if(!$packet->perform_security_check($security, $session_id)){
-		$packet->send_error();
+	if(!$packet_parser->perform_security_check($security, $session_id)){
+		$packet_parser->send_error();
 		exit;		
 	}
 	
-	if(!$packet->perform_crc_check($crc)){
-		$packet->send_error();
+	if(!$packet_parser->perform_crc_check($crc)){
+		$packet_parser->send_error();
 		exit;		
 	}
 	
 	$query = mysql_query('SELECT * FROM rna_users WHERE session_id=\'' . $session_id . '\'');
 	if(mysql_num_rows($query) <= 0){
-		$packet->send_error();
+		$packet_parser->send_error();
 		exit;
 	}
 	$uinfo = mysql_fetch_array($query);
 		
 	if( intval(intval($size, 16) & 0xF000, 16) == 0xB000 ){				
 		$un_blowfish_key = unserialize($uinfo['blowfish']);		
-		$packet->decrypt($un_blowfish_key);		
+		$packet_parser->decrypt($un_blowfish_key);		
 	}
 	
 	
@@ -191,7 +211,7 @@
 	}
 	
 	if((int)$uinfo['dc'] == 1){
-		$packet->send_error();
+		$packet_parser->send_error();
 		break;
 	}
 	

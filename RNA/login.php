@@ -1,6 +1,6 @@
 <?php
-	if(!$packet->perform_crc_check($crc)){
-		$packet->send_error();
+	if(!$packet_parser->perform_crc_check($crc)){
+		$packet_parser->send_error();
 		exit;		
 	}
 		
@@ -8,15 +8,15 @@
 		case 1101:
 			$packet_raw = '';
 			
-			$ulen = $packet->ReadByte();
+			$ulen = $packet_parser->ReadByte();
 	
 			$name = '';
 			for($i = 0; $i < $ulen; $i++)
-				$name .= chr(hexdec($packet->ReadByte()));
+				$name .= chr(hexdec($packet_parser->ReadByte()));
 				
 			$name .= NULL;
 				
-			$md5_pass_array = $packet->ReadArray(16);
+			$md5_pass_array = $packet_parser->ReadArray(16);
 			$md5_pass = '';
 			
 			for($i = 0; $i < 16; $i++)
@@ -45,16 +45,8 @@
  				srand((float) $sec + ((float) $usec * 100000));
  				$security = rand();
  				$security = dechex( intval($security, 16) & 0xFF );
-				$raw_id = dechex($resp['id']);
-				
-				for($i = strlen($raw_id)-1; $i > 0; $i-=2)
-					$id .= $raw_id[$i-1] . $raw_id[$i];
-				
-				if((strlen($id) % 2) != 0)
-					$id = '0' . $id;
-				
-				while(strlen($id) < 8)
-					$id .= '0';
+								
+				$id = $packet_parser->ByteReverse($resp['id'], 4); 
 									
 				while(strlen($session_id) < 32)
 					$session_id = '0' . $session_id;	
@@ -73,8 +65,8 @@
 		break;
 	}
 	
-	if(!$packet->perform_security_check($security)){
-		$packet->send_error();
+	if(!$packet_parser->perform_security_check($security)){
+		$packet_parser->send_error();
 		exit;		
 	}
 	

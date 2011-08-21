@@ -11,6 +11,28 @@ CSocket *csocket = NULL;
 SOCKET sock = NULL;
 
 int main(){
+
+	printf("\n -------------------- DISCLAIMER ---------------------\n");
+	printf("|| El usuario al usar este programa, que a partir de ||\n");
+	printf("|| ahora sera referido como RNA, se compromete a no  ||\n");
+	printf("||    darle un uso ilegal, ya sea para compartir     ||\n");
+	printf("||  informacion con derechos de propiedad o por ende ||\n");
+	printf("||   juegos cuya funcion LAN implique el uso de un   ||\n");
+	printf("||     servidor externo o metodo ajeno a su (del     ||\n");
+	printf("||                  usuario) propiedad.              ||\n");
+	printf("||                                                   ||\n");
+	printf("||     Pulsar cualquier tecla y continuar con el     ||\n");
+	printf("|| programa implica la aceptacion immediata de tales ||\n");
+	printf("||   condiciones y la asumision total de los actos   ||\n");
+	printf("||        realizados, eximiendo de cualquier         ||\n");
+	printf("||  responsabilidad al creador de esta herramienta   ||\n");
+	printf("||  de comunicacion entre plataformas PlayStation 3  ||\n");
+	printf("||                     de Sony (c)                   ||\n");
+	printf(" -----------------------------------------------------\n\n");
+
+	system("pause");
+	printf("\n");
+
 	csocket = new CSocket();
 	
 	//Let's rock =)
@@ -62,6 +84,9 @@ int main(){
 	syncTrophies();
 	
 	listFriends();
+
+	printf("\nAdding Friend \"test\"\n");
+	addFriend();
 
 	printf("\n\n");
 	system("pause");

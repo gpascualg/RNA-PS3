@@ -8,18 +8,7 @@
 			
 			$num_raw = dechex( mysql_num_rows($query) );
 			
-			$num = '';
-			if(strlen($num_raw) > 1)
-				for($i = strlen($num_raw)-1; $i > 0; $i-=2)
-					$num .= $num_raw[$i-1] . $num_raw[$i];
-			else
-				$num = $num_raw;
-				
-			if((strlen($num) % 2) != 0)
-				$num = '0' . $num;
-			
-			while(strlen($num) < 8)
-				$num .= '0';
+			$num = $packet_parser->ByteReverse($num_raw, 4, true);
 
 			$packet_raw .= $num;	
 			
@@ -28,20 +17,8 @@
 					$raw_id = $resp['uid2'];
 				else
 					$raw_id = $resp['uid1'];
-
-				$id = '';
-				$raw_id = dechex($raw_id);
-				if(strlen($raw_id) > 1)
-					for($i = strlen($raw_id)-1; $i > 0; $i-=2)
-						$id .= $raw_id[$i-1] . $raw_id[$i];
-				else
-					$id = $raw_id;
-
-				if((strlen($id) % 2) != 0)
-					$id = '0' . $id;
-				
-				while(strlen($id) < 8)
-					$id .= '0';
+									
+				$id = $packet_parser->ByteReverse($raw_id, 4);
 					
 				$packet_raw .= $id;
 			
@@ -58,8 +35,6 @@
 				}
 			}
 			
-			//$packet_raw .= '\0\0\0\0\0\0\0';
-			
 			$key = unserialize($uinfo['blowfish']);
 			$crypt = new pcrypt(MODE_ECB, "BLOWFISH", $key, true);
 			$packet_crypt = $crypt->encrypt($packet_raw);
@@ -70,21 +45,66 @@
 		   		$packet_add .= ((strlen($buff)<2)?'0':'') . $buff;	
 			}
 			
-			$size = strlen($packet_add);
-			if(strlen($size) == 3){
-				$p_size = dechex((intval($size,16) & 0xFF0) >> 4);
-				$p_size = ((strlen($p_size) < 2)?'0':'') . $p_size;
-				$p_size .= 'B' . dechex( intval($size, 16) & 0xF ); 
-			}else if(strlen($size) == 2)
-				$p_size = $size . 'B0';
+			$size = dechex(strlen($packet_add));
+			
+			if(strlen($size) == 3)
+				$size = 'B' . $size;
+			else if(strlen($size) == 2)
+				$size = 'B0' . $size;
 			else
-				$p_size = '0' . $size . 'B0';
+				$size = 'B00' . $size;
 				
+			$p_size = $packet_parser->ByteReverse($size, 2, true);
+			
 			echo $packet . $p_size . $packet_add;
 		}break;
 		case 1302:{			
+			$nicklen = $packet_parser->ReadByte();
+			$nick = '';
+						
+			for($i = 0; $i < $nicklen; $i++)
+				$nick .= chr(hexdec($packet_parser->ReadByte()));
 			
-		}
+			$packet = '02A30100';	
+				
+			$query = mysql_query("SELECT id FROM rna_users WHERE nick='" . $nick . "'");
+			if(mysql_num_rows($query) <= 0)
+				$packet .= '00';
+			else{
+				list($id) = mysql_fetch_row($query);
+				
+				$query2 = mysql_query("SELECT id FROM rna_friends WHERE (uid1=" . $uinfo['id'] . " AND uid2=" . $id . ") OR (uid1=" . $id . " AND uid2=" . $uinfo['id'] . ")");
+
+				if(mysql_num_rows($query2) > 0)
+					$packet .= '02';
+				else{
+					mysql_query("INSERT INTO rna_friends (uid1, uid2) VALUES (" . $uinfo['id'] . "," . $id . ")");
+					$packet .= '01';
+				}
+			} 
+			
+			echo $packet;
+			exit;
+		}break;
+		case 1303:{
+			$uid = $packet_parser->ReadDword();
+			
+			$packet = '03A30000';
+			$rawpacket = '';
+			$game_array = array();
+			$game_i = 0;
+			$query = mysql_query("SELECT * FROM rna_user_trophies WHERE uid" . $uid);
+			
+			while(($resp = mysql_fetch_array($query)) != NULL){
+				if(!in_array($resp['gid'], $game_array)){
+					$gid = $packet_parser->ByteReverse($resp['gid'], 4);
+
+					$rawpacket .= $gid;
+						
+					$game_array[$game_i++] = $resp['gid'];
+				}
+			}
+		}break;
 		default:
 		break;
 	}

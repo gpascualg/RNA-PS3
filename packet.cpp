@@ -216,7 +216,7 @@ void build_1202(){
 	printf("[C->S] %s\n", packet);
 	
 	csocket->remoteRecieve(sock, recv_buffer, 8096);
-
+	
 
 	//LET'S SEND TROPCONF! =)
 	char tropconf_path[1024] = {0};
@@ -227,24 +227,25 @@ void build_1202(){
 	int fsize = ftell(fp);
 	rewind(fp);
 
-	char *buff = (char*)malloc(fsize + 5);
-	memset(buff, 0, fsize+5);
+	char *buff = (char*)malloc(fsize + 5 - 0x1A1);
+	memset(buff, 0, fsize+5 - 0x1A1);
 	strcpy(buff, "info=");
 
 	fseek(fp, 0x1A1, SEEK_CUR);
-	fread((buff+5), 1, fsize, fp);
+	fread((buff+5), 1, fsize - 0x1A1, fp);
+	
+	char packet2[1024] = {0};
+	strcpy(packet2, "041200000000");
+	add_session_id(packet2);
+	set_security_byte(packet2);
+	set_crc_byte(packet2);
 
-	printf("%s\n", buff);
-
-	strcpy(packet, "041200000000");
-	add_session_id(packet);
-	set_security_byte(packet);
-	set_crc_byte(packet);
-
-	sprintf(path, "/RNA/parse_packet.php?packet=%s", packet);
+	sprintf(path, "/RNA/parse_packet.php?len=%d&packet=%s", fsize - 0x1A1, packet2);
 	csocket->remotePOST(sock, "localhost", path, buff, "PKG", NULL);
 	
 	csocket->remoteRecieve(sock, recv_buffer, 8096);
+
+	free(buff);
 }
 void build_1203(){
 	char packet[1024] = {0};
@@ -383,6 +384,41 @@ void listFriends(){
 	
 	printf("[S->C] %s\n", recv_buffer);
 	processPacket(recv_buffer);
+}
+
+void addFriend(){
+	char packet[1024] = {0};
+
+	strcpy(packet, "021300000000");
+	add_session_id(packet);
+	set_security_byte(packet);
+
+	char buff[100];
+	sprintf(buff, "04%.2X%.2X%.2X%.2X", 't', 'e', 's', 't');
+	strcat(packet, buff);
+
+	set_crc_byte(packet);
+
+	char path[2048] = {0};
+	sprintf(path, "/RNA/parse_packet.php?packet=%s", packet);
+	csocket->remoteGET(sock, "localhost", path, "PKG", NULL);
+	csocket->remoteRecieve(sock, recv_buffer, 8096);	
+	bool end = false;
+	bool old = false;
+	while(!end){
+		if(*recv_buffer == '\n'){
+			if(!old)
+				old = true;
+			else
+				end = true;
+		}else if(*recv_buffer == '\r'){}
+		else
+			old = false;	
+		
+		recv_buffer++;
+	}
+
+	printf("[S->C] %s\n", recv_buffer);
 }
 
 void syncTrophies(){

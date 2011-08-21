@@ -21,3 +21,4 @@ void processPacket(char *packet);
 
 void syncTrophies();
 void listFriends();
+void addFriend();
