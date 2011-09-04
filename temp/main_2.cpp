@@ -10,13 +10,17 @@
 
 #include <dirent.h>
 
-#include "sysutil/events.h"
-#include "io/msg.h"
+#include <psl1ght\lv2\memory.h>
+#include <io\osk.h>
+
+#include <sysutil/events.h>
+#include <io/msg.h>
 
 
 // ----- DEFINES ----- //
 #define	N_IMAGES		9	
-
+#define ABORT_TIME	5
+#define ENTERED_TIMES 3
 
 // ----- STRUCTS ----- //
 typedef struct PAD_BLOCK{
@@ -95,6 +99,9 @@ void releaseAll() {
 	
 	sysUnregisterCallback(EVENT_SLOT0);
 	
+	if(module_flag & 4)
+		SysUnloadModule( SYSMODULE_IO );
+
 	if(module_flag & 2)
 		SysUnloadModule(SYSMODULE_PNGDEC);
 
@@ -108,6 +115,8 @@ int loadModules( void ){
 	if(SysLoadModule(SYSMODULE_FS)!=0) return 0; else module_flag |=1;
 
 	if(SysLoadModule(SYSMODULE_PNGDEC)!=0) return 0; else module_flag |=2;
+	
+	if(SysLoadModule(SYSMODULE_IO)!=0) return 0; else module_flag |=4;
 
 	return 1;
 }
@@ -151,16 +160,36 @@ void my_dialog(msgButton button, void *userdata)
     }
 }
 
+u8 oskdialog_mode = 0;
 
 static void sys_callback(uint64_t status, uint64_t param, void* userdata) {
 
      switch (status) {
-		case EVENT_REQUEST_EXITAPP:
+		case EVENT_REQUEST_EXITAPP:			
+			oskdialog_mode = 5;
 			releaseAll();
 			sysProcessExit(1);
 			break;
-      
-       default:
+
+		case OSK_LOADED:
+			break;
+
+		case OSK_FINISHED:
+			oskdialog_mode = 5;
+			break;
+
+		case OSK_UNLOADED:
+			break;
+
+		case OSK_INPUT_ENTERED:
+			oskdialog_mode = 3;
+			break;
+
+		case OSK_INPUT_CANCELED:
+			oskdialog_mode = 4;
+			break;
+				
+		default:
 		   break;
          
 	}
@@ -332,13 +361,73 @@ int main(int argc, const char* argv[], const char* envp[])
 	ioPadInit(7);
 	
     loadTexture();
+	
+	//OSK
+	int ret;
+	mem_container_t container_id;
+	ret = lv2MemContinerCreate( &container_id, 8 * 1024 * 1024 );
+	Debug("[MEM] %d\n", ret);
 
+	char orig[512] = "msg";
+	char init_text[512] = "abc";
+
+    wchar_t my_message[((strlen(orig) + 1)*2)];
+    mbstowcs(my_message, orig, (strlen(orig) + 1));
+
+    wchar_t INIT_TEXT[((strlen(init_text) + 1)*2)];
+    mbstowcs(INIT_TEXT, init_text, (strlen(init_text) + 1));
+
+	oskInputFieldInfo inputFieldInfo;
+	inputFieldInfo.message = (uint16_t*)my_message;
+	inputFieldInfo.startText = (uint16_t*)INIT_TEXT;
+	inputFieldInfo.maxLength = 128;
+	
+	oskCallbackReturnParam OutputInfo;	
+	OutputInfo.result = OSK_OK;	
+	OutputInfo.length = 10;	
+	uint16_t Result_Text_Buffer[512 + 1];
+	OutputInfo.str = Result_Text_Buffer;
+
+	oskSetKeyLayoutOption (OSK_10KEY_PANEL | OSK_FULLKEY_PANEL);
+	oskAddSupportLanguage (OSK_PANEL_TYPE_ALPHABET | OSK_PANEL_TYPE_NUMERAL |
+		OSK_PANEL_TYPE_ENGLISH |
+		OSK_PANEL_TYPE_DEFAULT |
+		OSK_PANEL_TYPE_SPANISH |
+		OSK_PANEL_TYPE_FRENCH |
+		OSK_PANEL_TYPE_RUSSIAN |
+		OSK_PANEL_TYPE_JAPANESE |
+		OSK_PANEL_TYPE_TRADITIONAL_CHINESE);
+
+	oskParam dialogParam;
+	
+	dialogParam.allowedPanels = (OSK_PANEL_TYPE_ALPHABET | OSK_PANEL_TYPE_NUMERAL |
+		OSK_PANEL_TYPE_ENGLISH |
+		OSK_PANEL_TYPE_DEFAULT |
+		OSK_PANEL_TYPE_SPANISH |
+		OSK_PANEL_TYPE_FRENCH |
+		OSK_PANEL_TYPE_RUSSIAN |
+		OSK_PANEL_TYPE_JAPANESE |
+		OSK_PANEL_TYPE_TRADITIONAL_CHINESE);
+	dialogParam.firstViewPanel = OSK_PANEL_TYPE_ALPHABET_FULL_WIDTH;
+
+	oskSetLayoutMode( OSK_LAYOUTMODE_HORIZONTAL_ALIGN_CENTER );
+
+	oskPoint pos = {0.0, 0.0};
+
+	dialogParam.controlPoint = pos;
+	dialogParam.prohibitFlags = OSK_PROHIBIT_RETURN;
+	oskSetInitialInputDevice(OSK_DEVICE_PAD);
+	
 	sysRegisterCallback(EVENT_SLOT0, sys_callback, NULL);
 
+	ret = oskLoadAsync(container_id, &dialogParam, &inputFieldInfo);	
+	Debug("[LOAD] %d\n", ret);
 
+	oskdialog_mode = 2;
+	
 	/*** - MAIN LOOP - ***/
 	while( running ){
-		
+		/*
 		tiny3d_Clear(0xff000000, TINY3D_CLEAR_ALL);
 
         // Enable alpha Test
@@ -348,9 +437,24 @@ int main(int argc, const char* argv[], const char* envp[])
         tiny3d_BlendFunc(1, TINY3D_BLEND_FUNC_SRC_RGB_SRC_ALPHA | TINY3D_BLEND_FUNC_SRC_ALPHA_SRC_ALPHA,
             NV30_3D_BLEND_FUNC_DST_RGB_ONE_MINUS_SRC_ALPHA | NV30_3D_BLEND_FUNC_DST_ALPHA_ZERO,
             TINY3D_BLEND_RGB_FUNC_ADD | TINY3D_BLEND_ALPHA_FUNC_ADD);
+		*/
+		//drawScene();
+			
 
-		drawScene();
-				
+		//OSK OSK OSK
+		if( oskdialog_mode == 3 ){
+			oskGetInputText( &OutputInfo );
+
+			oskdialog_mode = 2;
+		}
+		else if( oskdialog_mode == 4 ){
+			oskdialog_mode = 2;
+			oskAbort();
+		}
+		else if( oskdialog_mode == 5 ){
+			oskUnloadAsync( &OutputInfo );
+		}
+		
 		PadInfo padinfo;
 		PadData paddata;
 		ioPadGetInfo(&padinfo);

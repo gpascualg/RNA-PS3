@@ -26,12 +26,6 @@
 #include <libfont.h>
 #include <pngdec/loadpng.h>
 
-
-#define true 1
-#define false 0
-typedef unsigned int bool;
-
-
 typedef struct _SIZE{
 	u32 width;
 	u32 height;
