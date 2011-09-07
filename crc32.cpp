@@ -20,7 +20,7 @@
 
 /* Need an unsigned type capable of holding 32 bits; */
 
-typedef DWORD UNS_32_BITS;
+typedef u32 UNS_32_BITS;
 
 /* Copyright (C) 1986 Gary S. Brown.  You may use this program, or
    code or tables extracted from it, as desired without restriction.*/
@@ -114,15 +114,15 @@ static UNS_32_BITS crc_32_tab[] = { /* CRC polynomial 0xedb88320 */
 0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d
 };
 
-DWORD updateCRC32(unsigned char ch, DWORD crc)
+u32 updateCRC32(unsigned char ch, u32 crc)
 {
       return crc_32_tab[((int)crc ^ ch) & 0xff] ^ ((crc >> 8) & 0x00FFFFFF);
 }
 
-bool crc32file(char *name, DWORD *crc, long *charcnt)
+bool crc32file(char *name, u32 *crc, long *charcnt)
 {
       register FILE *fin;
-      register DWORD oldcrc32;
+      register u32 oldcrc32;
       register int c;
 
       oldcrc32 = 0xFFFFFFFF; *charcnt = 0;
@@ -153,9 +153,9 @@ bool crc32file(char *name, DWORD *crc, long *charcnt)
       return 1;
 }
 
-DWORD crc32buf(char *buf, size_t len)
+u32 crc32buf(char *buf, size_t len)
 {
-      register DWORD oldcrc32;
+      register u32 oldcrc32;
 
       oldcrc32 = 0xFFFFFFFF;
 

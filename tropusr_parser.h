@@ -1,32 +1,36 @@
 #ifndef _TROPUSR_PARSER_H
 #define _TROPUSR_PARSER_H
 
-#include <Windows.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <malloc.h>
+#include <errno.h>
+#include <psl1ght/types.h>
 
 #define cplusplus
 
 #pragma pack(1)
 
 typedef struct tropusr_trophies{	
-	DWORD unk1;		//06 00 00 00
-	DWORD unk2;
-	BYTE unk3[0x8];
-	BYTE unk4[3];
+	u32 unk1;		//06 00 00 00
+	u32 unk2;
+	u8 unk3[0x8];
+	u8 unk4[3];
 
-	BYTE trophie_id;
+	u8 trophie_id;
 
-	BYTE unk5[3];
+	u8 unk5[3];
 
-	BYTE unlocked;
-	BYTE unk00;
-	BYTE platinum_unlocked;
-	BYTE unk10;	//0x10 / 0x20
-	BYTE unk6[5];
-	BYTE timestamp[16];
+	u8 unlocked;
+	u8 unk00;
+	u8 platinum_unlocked;
+	u8 unk10;	//0x10 / 0x20
+	u8 unk6[5];
+	u8 timestamp[16];
 
-	BYTE unk7[0x40];
+	u8 unk7[0x40];
 }				
 #ifdef cplusplus
 ;
@@ -46,8 +50,8 @@ tropusr_trophies_list;
 
 typedef struct tropusr_ret{	
 	char game_name[16];
-	BYTE max_trophies;
-	BYTE user_trophies;
+	u8 max_trophies;
+	u8 user_trophies;
 
 	struct tropusr_trophies_list *trophies_list;
 }				

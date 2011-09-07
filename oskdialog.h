@@ -59,7 +59,6 @@ private:
 	method_b *png_displayer;
 	u32 *texture_pointer;
 
-	int ttf_inited;
 	FT_Library freetype;
 	u8 font_slot;
 
@@ -67,13 +66,21 @@ private:
 	osk_point pos;
 
 	_png_loader *btn;
+	_png_loader *del;
 	_png_loader *space;
 
 	u8 mode;
 	s8 sel_num;
 	s8 sel_row;
 
+	u8 cursor_pos;
+	u8 show_cursor;
+	timeval old_cursor;
+
 	char buffer[256];
+
+	void delAtPos();
+	void handleInput();
 
 	static _png_loader* png_loader_f(char * path, u32 *texture_pointer){
 		_png_loader *png = (_png_loader*)malloc(sizeof(_png_loader));
@@ -121,21 +128,23 @@ private:
 	void DrawBorders2D(u32 rgba, float x, float y, float w, float h, u32 border);
 
 public:
-	OSK(){ status = OSK_INITIALIZED; sel_row = 0; sel_num = 0; png_loader = NULL; png_displayer = NULL; font_slot = -1; ttf_inited = 0; mode = 1; };
+	OSK(){ status = OSK_INITIALIZED; sel_row = 0; sel_num = 0; png_loader = NULL; png_displayer = NULL; font_slot = -1; mode = 1; };
 	OSK(u32 *texture_pointer, char *usrdir);
 	OSK(method_a *png_loader, method_b *png_displayer, char *usrdir);
+
+	~OSK(){ FT_Done_FreeType(freetype); };
 
 	u32* loadFont(u8 slot, char *usrdir, u32 *texture_pointer);
 
 	u8 draw();
 	u8 handlePad();
 
-	u8 open(){ status = OSK_RUNNING; memset(buffer, 0, 256); return 0; };
+	u8 open();
 
 	u32 *getTexturePointer(){ return this->texture_pointer; };
 	osk_status getStatus(){ return this->status; };
 
-	char *getBuffer(){ this->status = OSK_END; return this->buffer; };
+	char *getBuffer();
 
 	void setPos(osk_point npos);
 };
