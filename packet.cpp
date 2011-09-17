@@ -133,7 +133,6 @@ char* send_login(char *username, char *password){
 
 	char buff[1024] = {0};
 	csocket->remoteRecieve(sock, buff, 1024);	
-	Debug("[RECV] %s\n", buff);
 
 	char *buffer = csocket->clearBuffer(buff);
 	Debug("[CLEAR] %s\n", buffer);
@@ -186,6 +185,9 @@ void processPacket(char *packet){
 		break;
 		case 0xA301:
 			process_A301(packet);
+		break;
+		case 0xCCCC:
+			login_result(2);
 		break;
 	}
 }

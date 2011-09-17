@@ -139,13 +139,13 @@ int CSocket::remoteConnect(char* m_IP, int m_iPort)
 {
     int m_sConnection = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP); 
      
-	memset(&m_siServerInfo, 0, sizeof(m_siServerInfo));
-	m_siServerInfo.sin_len = sizeof(m_siServerInfo);
+	memset(&m_siServerInfo, 0, sizeof(sockaddr_in));
+	m_siServerInfo.sin_len = sizeof(sockaddr_in);
 	m_siServerInfo.sin_family = AF_INET;
 	inet_pton(AF_INET, m_IP, &m_siServerInfo.sin_addr);
 	m_siServerInfo.sin_port = htons(m_iPort);
 
-	int ret = connect(m_sConnection, (struct sockaddr*)&m_siServerInfo, sizeof(m_siServerInfo));
+	int ret = connect(m_sConnection, (struct sockaddr*)&m_siServerInfo, sizeof(sockaddr_in));
 	if (ret)
 		return -1;
 

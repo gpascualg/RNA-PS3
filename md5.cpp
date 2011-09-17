@@ -1,7 +1,7 @@
 #include "md5.h"
 
 /* typedef a 32 bit type */
-typedef unsigned long int UINT4;
+typedef uint32_t UINT4;
 
 /* Data structure for MD5 (Message Digest) computation */
 struct MD5_CTX{

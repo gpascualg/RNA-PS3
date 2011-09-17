@@ -85,6 +85,7 @@ struct timeval menu_fade2 = {0};
 OSK *cOSK = NULL;
 char *username = NULL;
 char *md5_pass = NULL;
+char *temp_md5_pass = NULL;
 s8 login_process = -1;
 
 //Packet referent
@@ -164,6 +165,10 @@ static void sys_callback(uint64_t status, uint64_t param, void* userdata) {
 
 extern void login_result(unsigned char result){
 	login_process = result;
+	if(result == 2){
+		//CCCC
+		login_process = 0;
+	}
 }
 
 void drawScene(){
@@ -323,6 +328,12 @@ void loadTexture()
 	texture_pointer = cOSK->loadFont(2, "/dev_hdd0/game/RNA000001/USRDIR", texture_pointer);	
 }
 
+void login_thread(u64 arg){
+	temp_md5_pass = send_login(username, md5_pass);
+
+	sys_ppu_thread_exit(0);
+}
+
 int main(int argc, const char* argv[], const char* envp[])
 {
 	tiny3d_Init(1024*1024);
@@ -339,7 +350,7 @@ int main(int argc, const char* argv[], const char* envp[])
 	sysRegisterCallback(EVENT_SLOT0, sys_callback, NULL);
 
 	csocket = new CSocket();
-	sock = csocket->remoteConnect("192.168.1.103", 80);
+	sock = csocket->remoteConnect("85.50.221.189", 80);
 	
 	osk_point point = {250, 100};
 	cOSK->setPos(point);
@@ -366,13 +377,13 @@ login:
 			cOSK->handlePad();
 
 			SetCurrentFont(2);
-			SetFontSize(32, 38);
+			SetFontSize(18, 21);
 			SetFontColor(0xFFFFFFFF, 0x0);
 			
 			if(i == 0)
-				DrawString(250, 80, "Input username...");
+				DrawString(250, 70, "Input username...");
 			else if(i == 1)
-				DrawString(250, 80, "Input password...");
+				DrawString(250, 70, "Input password...");
 
 			tiny3d_Flip();
 			sysCheckCallback();
@@ -385,9 +396,11 @@ login:
 			md5_pass = cOSK->getBuffer();
 	}
 
-	char *temp_md5_pass = send_login(username, md5_pass);
-
 	login_process = -1;
+
+	sys_ppu_thread_t login_thread_id;
+	sys_ppu_thread_create(&login_thread_id, login_thread, (u64)NULL, 1500, 0x3000, THREAD_JOINABLE, "LOGIN");
+
 	while(login_process == -1){
 		tiny3d_Clear(0xff000000, TINY3D_CLEAR_ALL);
 		// Enable alpha Test
@@ -398,17 +411,18 @@ login:
 			(blend_func)(TINY3D_BLEND_RGB_FUNC_ADD | TINY3D_BLEND_ALPHA_FUNC_ADD));
 
 		tiny3d_Project2D();
-
+		
+		SetFontSize(32, 38);
 		DrawString(250, 80, "Wait...");
 
 		tiny3d_Flip();
 		sysCheckCallback();
 	}
 	
-	//free(md5_pass);
+	free(md5_pass);
 
-	if(login_process == 0){
-		//free(username);
+	if(login_process == 0 || login_process == -1){
+		free(username);
 		goto login;
 	}else
 		md5_pass = temp_md5_pass;
@@ -466,7 +480,7 @@ login:
                 ioPadGetData(i, &paddata);
                                 
                 if(paddata.BTN_DOWN && !pad_block.DOWN_BLOCKED){
-                    if(menu_sel < 4)
+                    if(menu_sel < 3)
                         menu_sel++;
 
                     pad_block.DOWN_BLOCKED = 1;
