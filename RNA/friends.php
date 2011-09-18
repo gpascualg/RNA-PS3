@@ -90,17 +90,24 @@
 			$uid = $packet_parser->ReadDword();
 			
 			$packet = '03A30000';
-			$rawpacket = '';
 			$game_array = array();
 			$game_i = 0;
 			$query = mysql_query("SELECT * FROM rna_user_trophies WHERE uid" . $uid);
+			
+			if(mysql_num_rows($query) <= 0){
+				$packet_parser->send_error();
+				exit;
+			}
+			
+			$num = $packet_parser->ByteReverse(mysql_num_rows($query), 4);
+			$packet .= $num;
 			
 			while(($resp = mysql_fetch_array($query)) != NULL){
 				if(!in_array($resp['gid'], $game_array)){
 					$gid = $packet_parser->ByteReverse($resp['gid'], 4);
 
-					$rawpacket .= $gid;
-						
+					$packet .= $gid;
+			
 					$game_array[$game_i++] = $resp['gid'];
 				}
 			}

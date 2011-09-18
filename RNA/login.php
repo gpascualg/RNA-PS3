@@ -22,6 +22,8 @@
 			for($i = 0; $i < 16; $i++)
 				$md5_pass .= ((strlen($md5_pass_array[$i]) < 2)?'0'.$md5_pass_array[$i]:$md5_pass_array[$i]);
 				
+			$md5_pass = strtolower($md5_pass);
+				
 			//Let's query for the user
 			$query = mysql_query("SELECT * FROM rna_users WHERE `password`='" . $md5_pass . "' AND `nick`='" . trim($name) . "'");
 			if(mysql_num_rows($query) > 0){
@@ -63,12 +65,5 @@
  			echo $packet_raw;
  			exit;
 		break;
-	}
-	
-	if(!$packet_parser->perform_security_check($security)){
-		$packet_parser->send_error();
-		exit;		
-	}
-	
-	
+	}	
 ?>
